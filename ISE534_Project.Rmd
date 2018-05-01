@@ -1,0 +1,304 @@
+---
+title: "A Statistical Analysis of Well-Being Indicators for Provinces in Turkey"
+author: "Ayþe Rumeysa Muþ and Þaban Dalaman"
+date: "ISE 534 - Data Mining"
+output: pdf_document
+---
+
+ 
+# Introduction and data set description
+
+  Every year Turkish Statistical Institute (TUIK) conducts surveys to compile, evaluate, analyse and publish statistics in the fields of economy, social issues, demography, culture, environment, science and technology, and in the other required areas. 
+
+  In this work, we present a brief statistical analysis and interpretation of results for 2015 statistics related Provinces in Turkey. The dataset is provided by TUIK after completing their study for all provinces in Turkey. 
+
+  Our goal in this project is to explore and show relations between features and outcomes such as level of happiness, hopefullness and life satisfaction.
+The data set includes 47 observations devided as 40 features and 7 responses for 81 provinces in Turkey.
+
+The observations are listed below with subgroups:
+
+* **Province**
+* **Housing**
+    +	Number of rooms per person
+    +	Toilet presence per centage in dwellings
+    +	Percentage of house holds having problems with quality of dwellings
+* **Work Life**
+    +	Employment rate
+    +	Unemployment rate
+    +	Average daily earnings
+    +	Job satisfaction rate
+* **Income and wealth**
+    +	Savings deposit per capita
+    +	Percentage of house holds in middle or higher income groups
+    +	Percentage of house holds declaring to fail on meeting basic needs
+* **Health**
+    +	Infant mortality rate
+    +	Life expectancy at birth
+    +	Number of applications per doctor 
+    +	Satisfication rate with health status
+    +	Satisfication rate with public health services
+* **Education**
+    +	Net schooling ratio of pre-primary education between the ages of 3and5
+    +	Average point of placement basic scores of the system for Transition to Secondary Education from Basic Education
+    +	Average points of the Transition to Higher Education Examination
+    +	Percentage of higher education graduates
+    +	Satisfaction rate with public education services
+* **Environment**
+    +	Average of PM10 values of the stations (airpollution)
+    +	Forest area per km2
+    +	Percentage of population receiving waste services
+    +	Percentage of households having noise problems from the streets
+    +	Satisfaction rate with municipal cleaning services
+* **Safety**
+    +	Murder rate (per million people)
+    +	Number of traffic accidents involving death or injury (per thousand people)
+    +	Percentage of people feeling safe when walking alone at night
+    +	Satisfication rate with public safety services
+* **Civic engagement**
+    +	Voter turnout at local administrations
+    +	Rate of membership to political parties
+    +	Percentage of persons interested in union/association activities
+* **Access to infrastructure services**
+    +	Number of internet subscriptions (per hundred persons) 
+    +	Access rate of population to sewerage and pipesystem
+    +	Access rate to airport
+    +	Satisfaction rate with municipal public transport services
+* **Social life**
+    +	Number of cinema and theatre audience (per hundred persons)
+    +	Shopping mall area per thousand people
+    +	Satisfication rate with social relations
+    +	Satisfication rate with social life
+
+* **Key Responses**
+    *	Level of happiness
+    *	Hopeful
+    *	Life Satisfaction Index
+    *	Life Expectancy Total
+    *	Life Expectancy Male
+    *	Life Expectancy Female
+
+
+# Data pre-processing and statistical analysis of the data
+
+The following chunks of codes contain preprocessing of the data set :
+
+Reading the data from the file containing the data set.
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(gclus)
+library(corrplot)
+library("ggplot2")
+library("car")
+#library(dplyr)
+library(corrgram)
+province.data <- read.csv("work-file.csv", header=T)
+attach(province.data)
+```
+
+
+Since data is already preprocessed by TUIK, there is no missing data and data cleaning is not required. There are two observation - "Access rate to airport" and "Shopping mall area per thousand people" that contains 0 entries. It seems they are showing actual situation for the related provinces. However we are going to investigate the side-effects of having 0 values in the model evaluation phase.
+There is no nominal attributes but there are attributes with different scales. In order to minimize bias for the models we are evaulating, we are going to use normalization techniques for some observed data.
+
+Statistical Summary of some important features:
+
+**Top 5 correlated observations**
+
+```{r, echo=FALSE}
+nda <- province.data[c(3:48)] # get data 
+nda.r <- abs(cor(nda)) # get correlations
+tnda <- nda.r
+inds = which(tnda == max(tnda), arr.ind=TRUE)
+tnda[inds] <- -100
+for (i in 1:5) {
+  inds = which(tnda == max(tnda), arr.ind=TRUE)
+  tnda[inds] <- -100
+  print(sprintf("%s vs.",rownames(nda.r)[inds[1,1]]))
+  print(sprintf("%s : %f",colnames(nda.r)[inds[1,2]],nda.r[inds[1,1],inds[1,2]]))
+  print(" ")
+}
+```
+
+**Top 5 observations covariances**
+
+Before calculating covariances, min/max normalization was applied to observations values.
+
+```{r, echo=FALSE}
+normalize <- function (value) 
+{
+  normalize = (value - min(value)) / (max(value) - min(value));
+}
+nda <- province.data[c(3:48)] # get data 
+for (i in 1:ncol(nda)) {
+  nda[,i] <- normalize(nda[,i])
+}
+nda.r <- abs(cov(nda)) # get covariance
+tnda <- nda.r
+for (i in 1:ncol(tnda)) {
+  tnda[i,i] <- -100
+}
+for (i in 1:5) {
+  inds = which(tnda == max(tnda), arr.ind=TRUE)
+  tnda[inds] <- -100
+  print(sprintf("%s vs.",rownames(nda.r)[inds[1,1]]))
+  print(sprintf("%s : %f",colnames(nda.r)[inds[1,2]],nda.r[inds[1,1],inds[1,2]]))
+  print(" ")
+}
+```
+
+# The grouping of observation correlations.
+Each color shows different group.
+
+
+```{r, echo=FALSE}
+nda <- province.data[c(3:43)] # get data 
+nda.r <- abs(cor(nda)) # get correlations
+nda.o <- order.single(nda.r)
+nda.col <- dmat.color(nda.r) # get colors
+#clist <- unique(as.vector(nda.col))
+cpairs(nda, nda.o[1:5], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+cpairs(nda, nda.o[6:10], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+cpairs(nda, nda.o[11:15], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+cpairs(nda, nda.o[16:20], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+cpairs(nda, nda.o[21:25], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+cpairs(nda, nda.o[26:30], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+cpairs(nda, nda.o[31:35], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+cpairs(nda, nda.o[36:41], panel.colors=nda.col, gap=.5,
+       main="Variables Ordered and Colored by Correlation" )
+#scatterplotMatrix(province.data[c(nda.o[1:5])])
+
+corrgram(nda[1:10], order=TRUE, lower.panel=panel.pts,
+         upper.panel=panel.pie, text.panel=panel.txt,
+         main="Variables Colored and Showed by Correlation Magnitude")
+corrgram(nda[11:20], order=TRUE, lower.panel=panel.pts,
+         upper.panel=panel.pie, text.panel=panel.txt,
+         main="Variables Colored and Showed by Correlation Magnitude")
+corrgram(nda[21:30], order=TRUE, lower.panel=panel.pts,
+         upper.panel=panel.pie, text.panel=panel.txt,
+         main="Variables Colored and Showed by Correlation Magnitude")
+corrgram(nda[31:41], order=TRUE, lower.panel=panel.pts,
+         upper.panel=panel.pie, text.panel=panel.txt,
+         main="Variables Colored and Showed by Correlation Magnitude")
+```
+
+
+
+# Hopefulness and Life satisfaction observation scores for each province.
+
+```{r, echo=FALSE}
+#opar <- par(no.readonly=TRUE)
+#par(mfrow=c(2,2),pch=19, col="black",type="p")
+
+plot(Seq, Hopeful, main="Hopefull vs. Province",ylab= "Level",xlab="Province Seq")
+abline(h=c(mean(Hopeful)), lwd=1.5, lty=2, col="red")
+text(Province, Hopeful,Province,cex=0.6, pos=4, col="darkblue")
+
+plot(Seq, Life.Expectancy.Total, main="Life Expectancy vs. Province", ylab= "Level",xlab="Provincev Seq")
+abline(h=c(mean(Life.Expectancy.Total)), lwd=1.5, lty=2, col="red")
+text(Province, Life.Expectancy.Total,Province,cex=0.6, pos=4, col="darkblue")
+
+plot(Seq, Life.Satisfaction.Index, main="Life Satisfaction Index vs. Province",ylab= "Level",xlab="Province Seq")
+abline(h=c(mean(Life.Satisfaction.Index)), lwd=1.5, lty=2, col="red")
+text(Province, Life.Satisfaction.Index,Province,cex=0.6, pos=4, col="darkblue")
+
+plot(Seq, Level.of.happiness, main="Happiness vs. Province", ylab= "Level",xlab="Province Seq")
+abline(h=c(mean(Level.of.happiness)), lwd=1.5, lty=2, col="red")
+text(Province, Level.of.happiness,Province,cex=0.6, pos=4, col="darkblue")
+#par(opar)
+```
+
+# The distribution of Life Expectancy attributes for all provinces.
+
+```{r, echo=FALSE}
+#opar <- par(no.readonly=TRUE)
+#par(mfrow=c(2,2),pch=19, col="black",type="p")
+#layout(matrix(c(1,1,2,3), 2, 2, byrow = TRUE))
+h<-hist(Life.Expectancy.Total,breaks=10, col="orange",main = "Life Expectancy (Total)", font.main = 4)
+xfit<-seq(min(Life.Expectancy.Total),max(Life.Expectancy.Total),length=40) 
+yfit<-dnorm(xfit,mean=mean(Life.Expectancy.Total),sd=sd(Life.Expectancy.Total)) 
+yfit <- yfit*diff(h$mids[1:2])*length(Life.Expectancy.Total) 
+lines(xfit, yfit, col="black", lwd=2)
+h<-hist(Life.Expectancy.Male,breaks=10, col="blue",main = "Life Expectancy (Male)", font.main = 4)
+xfit<-seq(min(Life.Expectancy.Male),max(Life.Expectancy.Male),length=40) 
+yfit<-dnorm(xfit,mean=mean(Life.Expectancy.Male),sd=sd(Life.Expectancy.Male)) 
+yfit <- yfit*diff(h$mids[1:2])*length(Life.Expectancy.Male) 
+lines(xfit, yfit, col="black", lwd=2)
+h<-hist(Life.Expectancy.Female,breaks=10, col="red",main = "Life Expectancy (Female)", font.main = 4)
+xfit<-seq(min(Life.Expectancy.Female),max(Life.Expectancy.Female),length=40) 
+yfit<-dnorm(xfit,mean=mean(Life.Expectancy.Female),sd=sd(Life.Expectancy.Female)) 
+yfit <- yfit*diff(h$mids[1:2])*length(Life.Expectancy.Female) 
+lines(xfit, yfit, col="black", lwd=2)
+#par(opar)
+```
+
+# The distribution of Level of Happiness and Hope attributes for all provinces.
+
+```{r, echo=FALSE}
+#opar <- par(no.readonly=TRUE)
+#par(mfrow=c(3,1),pch=19, col="black",type="p")
+#layout(matrix(c(1,1,2,3), 2, 2, byrow = TRUE))
+h<-hist(Level.of.happiness,breaks=10, col="orange",main = "Level of happiness", font.main = 4)
+xfit<-seq(min(Level.of.happiness),max(Level.of.happiness),length=40) 
+yfit<-dnorm(xfit,mean=mean(Level.of.happiness),sd=sd(Level.of.happiness)) 
+yfit <- yfit*diff(h$mids[1:2])*length(Level.of.happiness) 
+lines(xfit, yfit, col="black", lwd=2)
+
+h<-hist(Hopeful,main = "Hopeful", breaks=10, col="blue",font.main = 4)
+xfit<-seq(min(Hopeful),max(Hopeful),length=40) 
+yfit<-dnorm(xfit,mean=mean(Hopeful),sd=sd(Hopeful)) 
+yfit <- yfit*diff(h$mids[1:2])*length(Hopeful) 
+lines(xfit, yfit, col="black", lwd=2)
+
+h<-hist(Life.Satisfaction.Index,main = "Life Satisfaction Index", breaks=10, col="red",font.main = 4)
+xfit<-seq(min(Life.Satisfaction.Index),max(Life.Satisfaction.Index),length=40) 
+yfit<-dnorm(xfit,mean=mean(Life.Satisfaction.Index),sd=sd(Life.Satisfaction.Index)) 
+yfit <- yfit*diff(h$mids[1:2])*length(Life.Satisfaction.Index) 
+lines(xfit, yfit, col="black", lwd=2)
+#par(opar)
+```
+
+# Top 5 and lowest 5 Murder rates among all provinces
+
+```{r, echo=FALSE}
+#opar <- par(no.readonly=TRUE)
+#par(mfrow=c(2,1),col="black")
+#par(las=2)
+miny <- min(province.data$Murder.rate..per.million.people.)
+maxy <- max(province.data$Murder.rate..per.million.people.)
+odata <- province.data[order(province.data[,"Murder.rate..per.million.people."],decreasing=TRUE),]
+hdata <- odata[1:5,c("Province","Murder.rate..per.million.people.")]
+barplot(hdata[,2],space=1,names.arg=hdata[,1],horiz=FALSE,col="darkgreen",ylim=c(miny,maxy))
+title(main = "Top 5 Provinces with Highest Murder Rates", font.main = 2)
+ldata <- odata[(nrow(odata)-5):nrow(odata),
+               c("Province","Murder.rate..per.million.people.")]
+barplot(ldata[,2],space=1,names.arg=ldata[,1],horiz=FALSE,col="darkgreen",ylim=c(miny,maxy))
+title(main = "Provinces with Lowest 5 Murder Rates", font.main = 2)
+#par(opar)
+```
+
+
+# Top 5 and lowest 5 Unemployment rates among all provinces
+
+```{r, echo=FALSE}
+#opar <- par(no.readonly=TRUE)
+#par(mfrow=c(2,1),col="black",cex.lab = 1.5, cex.main = 1.4)
+#par(las=2)
+odata <- province.data[order(province.data[,"Unemployment.rate"],decreasing=TRUE),]
+#miny <- min(odata$Unemployment.rate)
+#maxy <- max(odata$Unemployment.rate)
+hdata <- odata[1:5,c("Province","Unemployment.rate")]
+barplot(hdata[,2],space=1,names.arg=hdata[,1],horiz=FALSE,col="darkgreen",ylim=c(miny,maxy))
+title(main = "Top 5 Provinces with Highest Unemployment rate", font.main = 2)
+ldata <- odata[(nrow(odata)-5):nrow(odata),
+               c("Province","Unemployment.rate")]
+barplot(ldata[,2],space=1,names.arg=ldata[,1],horiz=FALSE,col="darkgreen",ylim=c(miny,maxy))
+title(main = "Provinces with Lowest 5 Unemployment rate", font.main = 2)
+#par(opar)
+```
+
+
